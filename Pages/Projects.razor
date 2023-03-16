@@ -1,0 +1,75 @@
+﻿@page "/projects"
+
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using MudBlazor
+
+@inject IHttpClientFactory ClientFactory
+
+<PageTitle>Projects</PageTitle>
+
+@code {
+  private IEnumerable<Project>? projects = Array.Empty<Project>();
+  private bool getProjectsError;
+
+  protected override async Task OnInitializedAsync() {
+    var request = new HttpRequestMessage(HttpMethod.Get, "https://dotrest.azurewebsites.net/api/Projects");
+    request.Headers.Add("Accept", "application/vnd.github.v3+json");
+    request.Headers.Add("User-Agent", "HttpClientFactory-Sample");
+
+    var client = ClientFactory.CreateClient();
+
+    var response = await client.SendAsync(request);
+
+    if (response.IsSuccessStatusCode) {
+      using var responseStream = await response.Content.ReadAsStreamAsync();
+      projects = await JsonSerializer.DeserializeAsync<IEnumerable<Project>>(responseStream);
+    } else {
+      getProjectsError = true;
+    }
+
+  }
+
+  public class Project {
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    [JsonPropertyName("html_url")]
+    public Uri? GitHubHomeUrl { get; set; }
+
+    [JsonPropertyName("homepage")]
+    public Uri? Homepage { get; set; }
+
+    [JsonPropertyName("language")]
+    public string? Language { get; set; }
+
+    Random rnd = new Random();
+    public int Id { get {return rnd.Next(999999);} }
+  }
+
+}
+
+@if (getProjectsError) {
+  <p>Unable to get projects from api. Please try again later.</p>
+} else {
+  <div class="projectsList">
+    @foreach (var project in projects!) {
+      <div class="project" key=@project.Id>
+        <h3 class="title">@project.Name</h3>
+        <a href=@project.Homepage target="_blank">@project.Homepage</a>
+        <div>
+          @if (project.Description != null) {
+            <p>@project.Description</p>
+          } else {
+            <p>Doesn't or can't have a live website</p>
+          }
+        </div>
+        <p>@project.Language</p>
+        <a href=@project.GitHubHomeUrl target="_blank" class="icons"><MudIcon Icon="@Icons.Custom.Brands.GitHub" Title="GitHub" /></a>
+      </div>
+    }
+  </div>
+}
